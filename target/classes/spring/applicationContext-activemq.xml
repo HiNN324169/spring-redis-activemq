@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:mvc="http://www.springframework.org/schema/p"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd ">
+
+    <!--开启注解扫描-->
+    <context:component-scan base-package="com.nn"></context:component-scan>
+
+
+    <!--    读取配置文件-->
+    <bean id="propertyPlaceholderConfigurer"
+          class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <array>
+                <value>classpath:properties/mq.properties</value>
+            </array>
+        </property>
+    </bean>
+
+    <!--    声明连接工厂-->
+    <bean id="connectionFactory" class="org.apache.activemq.pool.PooledConnectionFactory" destroy-method="stop">
+        <property name="connectionFactory">
+            <bean class="org.apache.activemq.ActiveMQConnectionFactory">
+                <property name="brokerURL" value="${activemq_brokerURL}"></property>
+                <property name="userName" value="${activemq_username}"></property>
+                <property name="password" value="${activemq_password}"></property>
+            </bean>
+        </property>
+        <!--        最大连接数-->
+        <property name="maxConnections" value="${activemq_maxConnections}"></property>
+    </bean>
+
+    <!--    声明目的地-->
+    <bean id="destinationQueue" class="org.apache.activemq.command.ActiveMQQueue">
+        <constructor-arg index="0" value="${activemq_queue_name}"></constructor-arg>
+    </bean>
+
+    <!--    声明 操作mq 对象的JMSTemplate-->
+    <bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <!--        注入连接工厂-->
+        <property name="connectionFactory" ref="connectionFactory"></property>
+        <!--        设置小熊发送的 默认目的地-->
+        <property name="defaultDestination" ref="destinationQueue"></property>
+        <!--        设置消息转发器-->
+        <property name="messageConverter">
+            <bean class="org.springframework.jms.support.converter.SimpleMessageConverter"></bean>
+        </property>
+    </bean>
+
+    <!--    配置自定义 队列监听器-->
+    <bean id="queueListener" class="com.nn.listener.QueueListener"></bean>
+
+    <!--    配置监听器容器-->
+    <bean id="defaultMessageListenerContainer" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <!--        注入连接工厂-->
+        <property name="connectionFactory" ref="connectionFactory"/>
+        <!--        注入发送消息的目的地-->
+        <property name="destination" ref="destinationQueue"/>
+        <!--        注入自定义监听器-->
+        <property name="messageListener" ref="queueListener"/>
+    </bean>
+
+    <bean id="queueProducerService" class="com.nn.service.QueueProducerService"></bean>
+
+</beans>
